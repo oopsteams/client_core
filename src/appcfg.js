@@ -156,110 +156,113 @@ var appcfg = Base.extend({
 	},
 	check_upgrade: function(callback) {
 		var self = this;
-		self.check_resource_upgrade(()=>{
-			console.log('check_resource_upgrade over.');
-		});
+		
 		var c_dir = this.base_dir;
 		var old_ver_val = self.get('old_version');
 		var new_ver_val = self.get('version');
 		var upurl = self.get('upurl');
 		console.log('check_upgrade old_ver_val:', old_ver_val, ',new_ver_val:', new_ver_val, ',upurl:', upurl);
-		if (old_ver_val < new_ver_val) {
-
-			if (upurl.substring(upurl.length - 1) != '/') upurl += '/';
-			// var lib_name = 'v'+new_ver_val+'.tar.gz';
-			var lib_name = 'v' + new_ver_val + '.zip';
-			var lib_url = upurl + lib_name;
-			console.log('need_to_load new lib!!!!', lib_url);
-			var new_core_dir = 'prod';
-			var tmp_unzip_dir = path.join(c_dir, 'tmp');
-			var new_prod_dir = path.join(c_dir, new_core_dir);
-			var new_prod_dir_lib = path.join(c_dir, lib_name);
-
-			var final_call = () => {
-				self.infos = [];
-				if (callback) {
-					callback();
-				}
-			};
-			var final_deal = () => {
-				if (fs.existsSync(tmp_unzip_dir)) {
-					helpers.remove_dir(tmp_unzip_dir);
-				}
-				if (!fs.existsSync(tmp_unzip_dir)) {
-					fs.mkdirSync(tmp_unzip_dir);
-				}
-				if (fs.existsSync(new_prod_dir_lib)) {
-					//self.update('old_version', new_ver_val, 'old ver');
-					helpers.opengzip(new_prod_dir_lib, tmp_unzip_dir, (err, rs) => {
-						console.log('opengzip rs:', rs, ',err:', err);
-						if (err) {
-							fs.unlinkSync(new_prod_dir_lib);
-							final_call();
-						} else {
-							var prod_index_fp = path.join(tmp_unzip_dir, 'prod/index.html');
-							if (fs.existsSync(prod_index_fp)) {
-								fs.renameSync(path.join(tmp_unzip_dir, 'prod'), new_prod_dir);
-								if (fs.existsSync(path.join(new_prod_dir, 'index.html'))) {
-									self.update('old_version', new_ver_val, 'old ver');
-									fs.unlinkSync(new_prod_dir_lib);
-									final_call();
+		var check_ui_version = function(){
+			if (old_ver_val < new_ver_val) {
+				if (upurl.substring(upurl.length - 1) != '/') upurl += '/';
+				// var lib_name = 'v'+new_ver_val+'.tar.gz';
+				var lib_name = 'v' + new_ver_val + '.zip';
+				var lib_url = upurl + lib_name;
+				console.log('need_to_load new lib!!!!', lib_url);
+				var new_core_dir = 'prod';
+				var tmp_unzip_dir = path.join(c_dir, 'tmp');
+				var new_prod_dir = path.join(c_dir, new_core_dir);
+				var new_prod_dir_lib = path.join(c_dir, lib_name);
+			
+				var final_call = () => {
+					self.infos = [];
+					if (callback) {
+						callback();
+					}
+				};
+				var final_deal = () => {
+					if (fs.existsSync(tmp_unzip_dir)) {
+						helpers.remove_dir(tmp_unzip_dir);
+					}
+					if (!fs.existsSync(tmp_unzip_dir)) {
+						fs.mkdirSync(tmp_unzip_dir);
+					}
+					if (fs.existsSync(new_prod_dir_lib)) {
+						//self.update('old_version', new_ver_val, 'old ver');
+						helpers.opengzip(new_prod_dir_lib, tmp_unzip_dir, (err, rs) => {
+							console.log('opengzip rs:', rs, ',err:', err);
+							if (err) {
+								fs.unlinkSync(new_prod_dir_lib);
+								final_call();
+							} else {
+								var prod_index_fp = path.join(tmp_unzip_dir, 'prod/index.html');
+								if (fs.existsSync(prod_index_fp)) {
+									fs.renameSync(path.join(tmp_unzip_dir, 'prod'), new_prod_dir);
+									if (fs.existsSync(path.join(new_prod_dir, 'index.html'))) {
+										self.update('old_version', new_ver_val, 'old ver');
+										fs.unlinkSync(new_prod_dir_lib);
+										final_call();
+									} else {
+										final_call();
+									}
 								} else {
 									final_call();
 								}
-							} else {
-								final_call();
 							}
-						}
-					});
-				} else {
-					final_call();
-				}
-			}
-			var ver_obj = self.cfg['version'];
-			this.core_loading = true;
-			var size = 526;
-			var t = ver_obj.type;
-			if (t) {
-				var _size = parseInt(t);
-				if (_size && _size > 0) {
-					size = _size;
-				}
-			}
-			self.upgrade_task.st = 1;
-			self.upgrade_task.libpath = new_prod_dir_lib;
-			self.upgrade_task.size = size;
-			self.upgrade_task.errmsg = null;
-			self.upgrade_task.err = null;
-			service.download_lib_file(new_prod_dir_lib, lib_url, (err, fpath) => {
-				console.log('fpath:', fpath);
-				if (!err && fpath) {
-					if (fs.existsSync(fpath)) {
-						//self.update('old_version', new_ver_val, 'old ver');
-						console.log('download ok!!!');
-						setTimeout(() => {
-							final_deal();
-						}, 1000);
+						});
 					} else {
-						console.log('can not find lib, ', fpath);
+						final_call();
 					}
-				} else {
-					if (fs.existsSync(new_prod_dir_lib)) {
-						fs.unlinkSync(new_prod_dir_lib);
-					}
-					self.upgrade_task.errmsg = 'UI下载失败!';
-					self.upgrade_task.err = err;
 				}
-				self.upgrade_task.st = 2;
-				this.core_loading = false;
-			});
-
-		} else {
-			if (callback) {
-				callback();
+				var ver_obj = self.cfg['version'];
+				self.core_loading = true;
+				var size = 526;
+				var t = ver_obj.type;
+				if (t) {
+					var _size = parseInt(t);
+					if (_size && _size > 0) {
+						size = _size;
+					}
+				}
+				self.upgrade_task.st = 1;
+				self.upgrade_task.libpath = new_prod_dir_lib;
+				self.upgrade_task.size = size;
+				self.upgrade_task.errmsg = null;
+				self.upgrade_task.err = null;
+				service.download_lib_file(new_prod_dir_lib, lib_url, (err, fpath) => {
+					console.log('fpath:', fpath);
+					if (!err && fpath) {
+						if (fs.existsSync(fpath)) {
+							//self.update('old_version', new_ver_val, 'old ver');
+							console.log('download ok!!!');
+							setTimeout(() => {
+								final_deal();
+							}, 1000);
+						} else {
+							console.log('can not find lib, ', fpath);
+						}
+					} else {
+						if (fs.existsSync(new_prod_dir_lib)) {
+							fs.unlinkSync(new_prod_dir_lib);
+						}
+						self.upgrade_task.errmsg = 'UI下载失败!';
+						self.upgrade_task.err = err;
+					}
+					self.upgrade_task.st = 2;
+					self.core_loading = false;
+				});
+			
+			} else {
+				if (callback) {
+					callback();
+				}
 			}
-		}
-
+		};
+		
+		self.check_resource_upgrade(()=>{
+			console.log('check_resource_upgrade over.');
+			check_ui_version();
+		});
 	},
 	check_resource_upgrade: function(callback) {
 		var self = this;

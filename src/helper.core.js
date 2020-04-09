@@ -19,6 +19,7 @@ var helpers = {
 	download_dir_name: "download",
 	patch_dir_name: "patch",
 	log_dir_name: "logs",
+	cache_dir_name: "cache",
 	common_user_agent: 'pan.baidu.com',
 	devices: ['pc-mac', 'macos1', 'cccone', 'levis', 'susy', 'win', 'win1'],
 	token_timeout: 10 * 24 * 60 * 60 * 1000 + 1,
@@ -229,6 +230,9 @@ var helpers = {
 	},
 	now: function() {
 		return Date.now();
+	},
+	snow: function() {
+		return Math.round(Date.now()/1000);
 	},
 	iterator: function(data_list, action, callback) {
 		var final_call = (rs, idx) => {

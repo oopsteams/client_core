@@ -56,11 +56,15 @@ function find_target_dir(_base_dir, target, contain) {
 	console.log('find_target_dir:', rt_p);
 	return rt_p
 }
-var root_dir = find_target_dir(base_dir, app.getName(), false);
+var root_dir = find_target_dir(base_dir, app.getName(), true);
 var resources_dir = find_target_dir(dir_name, 'resources', true)
 var app_data_dir = path.join(root_dir, helpers.app_data_dir_name)
 if (!fs.existsSync(app_data_dir)) {
 	fs.mkdirSync(app_data_dir);
+}
+var cache_dir = path.join(app_data_dir, helpers.cache_dir_name);
+if (!fs.existsSync(cache_dir)) {
+	fs.mkdirSync(cache_dir);
 }
 var download_dir = path.join(app_data_dir, helpers.download_dir_name);
 if (!fs.existsSync(download_dir)) {
@@ -380,8 +384,6 @@ var win_option = {
 		}
 	},
 	onDestroy: function(win) {
-
-		on_quit_app();
 		app.quit();
 	}
 }
@@ -443,12 +445,12 @@ function on_quit_app() {
 		dao.close();
 	}
 }
-app.on('window-all-closed', () => {
-	on_quit_app();
-	if (process.platform !== 'darwin') {
-		app.quit();
-	}
-});
+// app.on('window-all-closed', () => {
+// 	on_quit_app();
+// 	if (process.platform !== 'darwin') {
+// 		app.quit();
+// 	}
+// });
 // var env_kv = process.env;
 // console.log('env_kv:', env_kv);
 
@@ -503,15 +505,19 @@ const default_cfg_items = [{
 		'key': 'patch_data_dir',
 		'value': patch_data_dir,
 		'name': '补丁下载目录'
+	},
+	{
+		'key': 'cache_dir',
+		'value': cache_dir,
+		'name': '资源缓存目录'
 	}
 ];
 // console.log('default_cfg_items:', default_cfg_items);
 let tray = null;
-
-function build_tray() {
-	const icon = nativeImage.createFromDataURL(
+const icon = nativeImage.createFromDataURL(
 		'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAABmJLR0QAAAAAAAD5Q7t/AAAACXBIWXMAAAsSAAALEgHS3X78AAABvElEQVQ4y4XUu2tUQRQG8N/u3s0aXR+QSsVHK4K96SRgCvHRCIGIYILiI+BfYWWthbHzCeILLVTEwkKtBQshopjKQsOKD4yrazGzeB3uHT8YLnPuN9/MmfOdaWAaR3AJPaxAEy0M4viCQ/iNWxiN/9v+ooE1YnAHxtRjExYxJ4+5Aj/xsrTLoIJ4HK+wkBEbx0QzCVaJTWItLmN9RvAUHjfl0cJp3MYHFDW8SazG1f8JzuAjXmALvlVwmkJRb2IpJ7gOUziPrzHtHxW8PViFe0P13J0s4HlMvcBywhkVbHcNn2TuZDsmMBvnI+jgV8LbL/j2Rjn/FA2cwBO8LcXbgrGH6OIALgrWqxUcx1acSzZp+9dW++Kd3k8rlGIWd7GUCBbox3krCl5PF6eCe4V+vJLEh307TPkwvuNBTrCLk0JHpH4r4ugJlZ0SKjvICc4I3XCn4hqacfEiDsbvIzVE2ChY4IJqjOAzNmB3zEJO8Bhe41mG9x674umeymCb4LnNGU4HZ/EwnrKMRkqeF4pBqGSVlVbiHc7UbDiGnegUwivyRujdruC1foncjwt6wiNxVGi3vlCo5bhuGvN/AMd/Wh7S3ewfAAAAAElFTkSuQmCC'
 	);
+function build_tray() {
 	tray = new Tray(icon)
 	const contextMenu = Menu.buildFromTemplate([{
 			label: '加入会员',
@@ -547,6 +553,7 @@ app.on('ready', () => {
 	}]);
 	Menu.setApplicationMenu(menu);
 	build_tray();
+	
 	var looper = helpers.looper;
 	var app_version = app.getVersion();
 	// console.log('db data_dir:', data_dir);
@@ -558,7 +565,8 @@ app.on('ready', () => {
 		const Cookies = require('./cookies.js');
 		const Sharewin = require('./sharewin.js');
 		const Viewpage = require('./viewpage.js');
-
+		const HttpCache = require('./httpcache.js');
+		HttpCache.init(require('electron').protocol, icon, cache_dir);
 		var appcfg = new AppCfg(patch_data_dir, {
 			'version': app_version
 		});
@@ -650,6 +658,7 @@ app.on('ready', () => {
 					*/
 					bindonquit(() => {
 						looper.stop();
+						HttpCache.quit();
 					});
 					cfg.check_upgrade();
 					contact_action = function(msg) {
@@ -674,7 +683,9 @@ app.on('ready', () => {
 					final_call();
 				});
 				app.on('before-quit', (event) => {
-					// event.preventDefault();
+					// event.preventDefault();//stock quit.
+					console.log('trigger on quit event!');
+					on_quit_app();
 				});
 			});
 		});
